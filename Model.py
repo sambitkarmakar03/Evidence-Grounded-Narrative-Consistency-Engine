@@ -16,24 +16,24 @@ warnings.filterwarnings('ignore')
 
 # --- 0. Setup ---
 DEVICE = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
-print(f"💻 Using device: {DEVICE}")
+print(f" Using device: {DEVICE}")
 
 # --- 1. Load the JSON files you generated in the previous step ---
-print("🔄 Loading pre-computed claims...")
+print("Loading pre-computed claims...")
 try:
     with open("train_with_claims_final.json", "r") as f:
         train_data = json.load(f)
     with open("test_with_claims_final.json", "r") as f:
         test_data = json.load(f)
 except FileNotFoundError as e:
-    print(f"❌ Error: Could not find the JSON files. Ensure you ran the RAG script first! {e}")
+    print(f"Error: Could not find the JSON files. Ensure you ran the RAG script first! {e}")
     exit()
 
 train_df = pd.DataFrame(train_data)
 test_df = pd.DataFrame(test_data)
 
 # --- 2. Feature Engineering ---
-print("🤖 Loading models for feature extraction...")
+print("Loading models for feature extraction...")
 bi_encoder = SentenceTransformer('all-MiniLM-L6-v2', device=DEVICE)
 reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2', device=DEVICE)
 
@@ -76,7 +76,7 @@ def extract_ml_features(row):
     }
 
 # --- 3. Process Datasets ---
-print("✨ Computing ML features...")
+print("Computing ML features...")
 X_train_list = [extract_ml_features(row) for _, row in tqdm(train_df.iterrows(), total=len(train_df))]
 X_test_list = [extract_ml_features(row) for _, row in tqdm(test_df.iterrows(), total=len(test_df))]
 
@@ -88,7 +88,7 @@ y = np.array([1 if l == 'consistent' else 0 for l in train_df['label']])
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
 # --- 4. Train XGBoost ---
-print("🎯 Training XGBoost Classifier...")
+print("Training XGBoost Classifier...")
 # scale_pos_weight balances the classes if you have more consistent than inconsistent labels
 ratio = len(y_train[y_train==0]) / max(1, len(y_train[y_train==1]))
 
@@ -107,7 +107,7 @@ print("\n📊 Validation Performance:")
 print(classification_report(y_val, y_pred, target_names=['inconsistent', 'consistent']))
 
 # --- 6. Generate Final Results ---
-print("\n🔮 Generating final results with numeric labels...")
+print("\nGenerating final results with numeric labels...")
 test_preds = model.predict(X_final_test) # Already 1s and 0s from XGBoost
 test_probs = model.predict_proba(X_final_test)
 
@@ -139,9 +139,9 @@ report_df.to_csv("consistency_evidence_report.csv", index=False)
 submission_df = report_df[['id', 'label']]
 submission_df.to_csv("submission_numeric.csv", index=False)
 
-print(f"✅ Success! Detailed report saved to: consistency_evidence_report.csv")
-print(f"✅ Success! Numeric submission saved to: submission_numeric.csv")
+print(f"Success! Detailed report saved to: consistency_evidence_report.csv")
+print(f"Success! Numeric submission saved to: submission_numeric.csv")
 
 # --- 8. Final Distribution Check ---
-print("\n📊 Final Prediction Distribution:")
+print("\nFinal Prediction Distribution:")
 print(submission_df['label'].value_counts())
